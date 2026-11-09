@@ -55,12 +55,21 @@ const farmhouseSchema = new mongoose.Schema(
         at: { type: Date, default: Date.now },
       },
     ],
+    // Cheapest offered slot, kept up to date on save so search can filter and sort by price.
+    minPrice: { type: Number, default: 0 },
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
+farmhouseSchema.pre('save', function setMinPrice(next) {
+  const prices = ['day', 'night', 'full'].map((k) => this.pricing?.[k]).filter((p) => p > 0);
+  this.minPrice = prices.length ? Math.min(...prices) : 0;
+  next();
+});
+
 farmhouseSchema.index({ status: 1, area: 1 });
+farmhouseSchema.index({ status: 1, minPrice: 1 });
 
 module.exports = mongoose.model('Farmhouse', farmhouseSchema);

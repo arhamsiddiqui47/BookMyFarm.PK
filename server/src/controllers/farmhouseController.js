@@ -1,4 +1,7 @@
+const mongoose = require('mongoose');
 const Farmhouse = require('../models/Farmhouse');
+const SlotLock = require('../models/SlotLock');
+const { halvesFor, isDate } = require('../utils/slots');
 const HttpError = require('../utils/httpError');
 const { storeFiles } = require('../utils/upload');
 
@@ -34,17 +37,95 @@ async function findOwned(id, user) {
 
 // ---------- Public ----------
 
-// Only approved listings are ever shown to the public. Search filters arrive in Week 3.
+const PUBLIC_FIELDS = '-history -verification.visitedBy -verification.photos';
+const SORTS = {
+  newest: { createdAt: -1 },
+  price_asc: { minPrice: 1 },
+  price_desc: { minPrice: -1 },
+  capacity: { capacity: -1 },
+  rating: { ratingAvg: -1 },
+};
+
+// Search verified farmhouses.
+// Query params (all optional): area, guests, minPrice, maxPrice, amenities=pool,bbq,
+// date=YYYY-MM-DD, slot=day|night|full, sort, page, limit.
+// When a date is given, farmhouses already booked for that date and slot are left out.
 exports.listPublic = async (req, res) => {
-  const items = await Farmhouse.find({ status: 'approved' })
-    .select('-history -verification.visitedBy')
-    .sort({ createdAt: -1 });
+  const q = req.query;
+  const filter = { status: 'approved' };
+  const slot = ['day', 'night', 'full'].includes(q.slot) ? q.slot : null;
+
+  if (q.area) filter.area = q.area;
+  if (q.guests) filter.capacity = { $gte: Number(q.guests) || 1 };
+  if (q.amenities) {
+    const list = String(q.amenities).split(',').map((x) => x.trim()).filter(Boolean);
+    if (list.length) filter.amenities = { $all: list };
+  }
+  // Price applies to the chosen slot, or to the cheapest slot when none is chosen.
+  const priceField = slot ? `pricing.${slot}` : 'minPrice';
+  if (q.minPrice || q.maxPrice) {
+    filter[priceField] = {};
+    if (q.minPrice) filter[priceField].$gte = Number(q.minPrice);
+    if (q.maxPrice) filter[priceField].$lte = Number(q.maxPrice);
+  }
+  if (slot) filter[`pricing.${slot}`] = { ...(filter[`pricing.${slot}`] || {}), $gt: 0 };
+
+  if (q.date) {
+    if (!isDate(q.date)) throw new HttpError(400, 'Date must be YYYY-MM-DD');
+    const halves = halvesFor(slot || 'full');
+    // With no slot chosen, a farmhouse counts as available if at least one half is still free.
+    let busy;
+    if (slot) {
+      busy = await SlotLock.distinct('farmhouse', { date: q.date, half: { $in: halves } });
+    } else {
+      const taken = await SlotLock.aggregate([
+        { $match: { date: q.date } },
+        { $group: { _id: '$farmhouse', n: { $sum: 1 } } },
+        { $match: { n: { $gte: 2 } } },
+      ]);
+      busy = taken.map((t) => t._id);
+    }
+    if (busy.length) filter._id = { $nin: busy };
+  }
+
+  const limit = Math.min(Number(q.limit) || 12, 50);
+  const page = Math.max(Number(q.page) || 1, 1);
+  const [items, total] = await Promise.all([
+    Farmhouse.find(filter)
+      .select(PUBLIC_FIELDS)
+      .sort(SORTS[q.sort] || SORTS.newest)
+      .skip((page - 1) * limit)
+      .limit(limit),
+    Farmhouse.countDocuments(filter),
+  ]);
+  res.json({ items, total, page, pages: Math.ceil(total / limit) });
+};
+
+// Side-by-side comparison of up to 3 verified farmhouses: /api/farmhouses/compare?ids=a,b,c
+exports.compare = async (req, res) => {
+  const ids = String(req.query.ids || '').split(',').filter((id) => mongoose.isValidObjectId(id)).slice(0, 3);
+  if (ids.length < 2) throw new HttpError(400, 'Pick 2 or 3 farmhouses to compare');
+  const found = await Farmhouse.find({ _id: { $in: ids }, status: 'approved' }).select(PUBLIC_FIELDS);
+  const items = ids.map((id) => found.find((f) => f._id.equals(id))).filter(Boolean);
   res.json({ items });
 };
 
+// Which half-days are booked in a month, for the calendar: /api/farmhouses/:id/availability?month=2026-12
+exports.availability = async (req, res) => {
+  const month = req.query.month;
+  if (!/^\d{4}-\d{2}$/.test(month || '')) throw new HttpError(400, 'Month must be YYYY-MM');
+  const fh = await Farmhouse.findOne({ _id: req.params.id, status: 'approved' }).select('_id');
+  if (!fh) throw new HttpError(404, 'Farmhouse not found');
+  const locks = await SlotLock.find({ farmhouse: fh._id, date: { $regex: `^${month}-` } }).select('date half -_id');
+  const booked = {};
+  for (const l of locks) (booked[l.date] ||= []).push(l.half);
+  res.json({ month, booked });
+};
+
 exports.getPublic = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Farmhouse not found');
   const fh = await Farmhouse.findOne({ _id: req.params.id, status: 'approved' })
-    .select('-history')
+    .select(PUBLIC_FIELDS)
     .populate('owner', 'name');
   if (!fh) throw new HttpError(404, 'Farmhouse not found');
   res.json({ farmhouse: fh });

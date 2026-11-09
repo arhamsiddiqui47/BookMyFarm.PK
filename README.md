@@ -60,6 +60,19 @@ MongoDB Atlas cluster (https://www.mongodb.com/cloud/atlas), or install MongoDB 
 5. If the owner edits a live listing it goes back to `pending`, so customers never see unchecked details.
 6. The admin can suspend a live listing and block users. Every action is kept in the listing's history.
 
+## Search and compare
+
+`GET /api/farmhouses` takes optional filters: `area`, `guests`, `minPrice`, `maxPrice`,
+`amenities=pool,bbq` (must have all), `date=YYYY-MM-DD`, `slot=day|night|full`, `sort`, `page`.
+- Price filters use the chosen slot's price, or the cheapest slot when no slot is chosen.
+- With a date, farmhouses already booked for that slot are hidden (using the same `SlotLock`
+  records the booking engine writes). With a date and no slot, only fully booked ones are hidden.
+- Only `approved` listings are ever returned.
+
+`GET /api/farmhouses/compare?ids=a,b,c` returns 2 or 3 listings for the side-by-side table, which
+highlights the cheapest price per slot and the biggest capacity.
+`GET /api/farmhouses/:id/availability?month=2026-12` returns booked half-days for the calendar.
+
 ## Booking policy (Vintage Vista)
 
 - Slots: day, night or full day (24 hours). A full-day booking blocks both day and night.
@@ -79,7 +92,7 @@ the second, so a double booking is impossible even under load.
 
 - [x] Week 1: setup, database models, login and roles
 - [x] Week 2: owner listings with photos and admin site-visit verification
-- [ ] Week 3: search, filter and compare
+- [x] Week 3: search, filter and compare
 - [ ] Week 4: booking engine, calendar, cancel and transfer
 - [ ] Week 5: dashboards, mock payment, emails
 - [ ] Week 6: deploy (Vercel + Render) and demo rehearsal

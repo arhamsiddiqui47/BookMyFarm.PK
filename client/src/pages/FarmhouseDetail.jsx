@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api, { errorMessage } from '../api/client';
+import CompareButton from '../components/CompareButton';
 import { amenityLabel, fmtDate, rupees, SLOT_LABELS } from '../lib/constants';
 
 export default function FarmhouseDetail() {
@@ -16,13 +17,14 @@ export default function FarmhouseDetail() {
   if (!fh) return <p className="p-8 text-center text-gray-500">Loading...</p>;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-8 pb-24">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-3xl font-bold">{fh.name}</h1>
         <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
           Verified by site visit{fh.verification?.decidedAt ? ` on ${fmtDate(fh.verification.decidedAt)}` : ''}
         </span>
       </div>
+      <CompareButton fh={fh} className="mt-2" />
       <p className="mt-1 text-gray-600">{fh.area}{fh.address ? ` · ${fh.address}` : ''} · up to {fh.capacity} guests</p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">

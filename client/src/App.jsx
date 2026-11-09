@@ -11,6 +11,8 @@ import OwnerDashboard from './pages/owner/OwnerDashboard';
 import FarmhouseForm from './pages/owner/FarmhouseForm';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ReviewListing from './pages/admin/ReviewListing';
+import Compare from './pages/Compare';
+import CompareBar from './components/CompareBar';
 
 const only = (role, el) => <ProtectedRoute roles={[role]}>{el}</ProtectedRoute>;
 
@@ -24,6 +26,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/farmhouses" element={<Farmhouses />} />
         <Route path="/farmhouses/:id" element={<FarmhouseDetail />} />
+        <Route path="/compare" element={<Compare />} />
 
         <Route path="/dashboard/customer" element={only('customer', <Dashboard role="customer" />)} />
 
@@ -36,6 +39,7 @@ export default function App() {
 
         <Route path="*" element={<p className="p-8 text-center">Page not found</p>} />
       </Routes>
+      <CompareBar />
     </>
   );
 }

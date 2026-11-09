@@ -8,6 +8,11 @@ const ctrl = require('../controllers/farmhouseController');
 
 // Public
 router.get('/', a(ctrl.listPublic));
+router.get('/compare', a(ctrl.compare));
+router.get('/areas', a(async (req, res) => {
+  const Farmhouse = require('../models/Farmhouse');
+  res.json({ areas: (await Farmhouse.distinct('area', { status: 'approved' })).sort() });
+}));
 
 // Owner (these must come before "/:id")
 const owner = [requireAuth, requireRole('owner')];
@@ -28,6 +33,7 @@ router.post(
 router.patch('/:id', owner, upload.array('photos', 10), a(ctrl.update));
 router.delete('/:id', owner, a(ctrl.remove));
 
+router.get('/:id/availability', a(ctrl.availability));
 router.get('/:id', a(ctrl.getPublic));
 
 module.exports = router;
