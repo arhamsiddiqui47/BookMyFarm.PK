@@ -12,7 +12,7 @@ export default function Home() {
         get a confirmed booking with proof.
       </p>
       <div className="mt-8 flex gap-3">
-        <Link to="/register" className="btn">Find a farmhouse</Link>
+        <Link to="/farmhouses" className="btn">Find a farmhouse</Link>
         <Link to="/register?role=owner" className="rounded-lg border border-gray-300 px-4 py-2 font-medium hover:bg-gray-100">
           List your farmhouse
         </Link>

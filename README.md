@@ -9,12 +9,15 @@ Stack: MongoDB, Express, React (Vite + Tailwind), Node.js, JWT auth.
 server/   Express REST API
   src/models/       User, Farmhouse, Booking, SlotLock (double-booking guard)
   src/middleware/   auth (JWT + role checks), validation, error handling
-  src/routes/       /api/auth, /api/dashboard (more added each week)
+  src/routes/       /api/auth, /api/farmhouses (public + owner), /api/admin
+  src/utils/upload.js   photo uploads (Cloudinary if CLOUDINARY_URL is set, else server/uploads)
   tests/            Jest + Supertest API tests
 client/   React frontend
   src/context/AuthContext.jsx   login state shared by all pages
   src/components/ProtectedRoute.jsx   blocks pages by role
-  src/pages/        Home, Login, Register, Dashboard
+  src/pages/        Home, Login, Register, Farmhouses, FarmhouseDetail
+  src/pages/owner/  OwnerDashboard, FarmhouseForm (add and edit with photos)
+  src/pages/admin/  AdminDashboard (stats, listings by status, users), ReviewListing (verification)
 ```
 
 ## Run it on your laptop (Windows)
@@ -47,6 +50,24 @@ MongoDB Atlas cluster (https://www.mongodb.com/cloud/atlas), or install MongoDB 
 - Anyone can sign up as customer or owner. Admin accounts come only from `npm run seed`,
   so nobody can make themselves an admin from the website.
 
+## How listing verification works
+
+1. An owner submits a farmhouse with photos. It is saved as `pending` and is not public.
+2. The admin opens it under "Pending verification" and schedules a site visit date.
+3. After the visit, the admin approves or rejects it with remarks and optional visit photos.
+   Approving is refused by the API if no visit was scheduled.
+4. Only `approved` listings appear on the public site, with a "Verified by site visit" badge.
+5. If the owner edits a live listing it goes back to `pending`, so customers never see unchecked details.
+6. The admin can suspend a live listing and block users. Every action is kept in the listing's history.
+
+## Booking policy (Vintage Vista)
+
+- Slots: day, night or full day (24 hours). A full-day booking blocks both day and night.
+- Advance: 30% of the slot price to confirm.
+- Cancellation more than 72 hours before the booking date: 30% of the advance is refunded.
+- Cancellation within 72 hours: no refund.
+These are stored per farmhouse (`advancePercent`, `cancelWindowHours`, `earlyCancelRefundPercent`).
+
 ## How double booking is prevented (built in Week 4)
 
 Every booked half-day (day or night) of a farmhouse gets a row in `SlotLock` with a unique
@@ -57,7 +78,7 @@ the second, so a double booking is impossible even under load.
 ## Build progress
 
 - [x] Week 1: setup, database models, login and roles
-- [ ] Week 2: owner listings (Cloudinary photos) and admin site-visit verification
+- [x] Week 2: owner listings with photos and admin site-visit verification
 - [ ] Week 3: search, filter and compare
 - [ ] Week 4: booking engine, calendar, cancel and transfer
 - [ ] Week 5: dashboards, mock payment, emails

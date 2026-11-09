@@ -1,25 +1,10 @@
 const request = require('supertest');
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
-const app = require('../src/app');
 const User = require('../src/models/User');
+const { app, startDb, stopDb, clearDb } = require('./setup');
 
-let mongo;
-
-beforeAll(async () => {
-  process.env.JWT_SECRET = 'test-secret';
-  mongo = await MongoMemoryServer.create();
-  await mongoose.connect(mongo.getUri());
-});
-
-afterAll(async () => {
-  await mongoose.disconnect();
-  await mongo.stop();
-});
-
-afterEach(async () => {
-  await User.deleteMany({});
-});
+beforeAll(startDb);
+afterAll(stopDb);
+afterEach(clearDb);
 
 describe('auth', () => {
   it('registers a customer and returns a token without the password', async () => {

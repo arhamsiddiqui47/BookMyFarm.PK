@@ -12,7 +12,7 @@ const pricingSchema = new mongoose.Schema(
 
 const verificationSchema = new mongoose.Schema(
   {
-    visitDate: Date,
+    visitDate: Date, // scheduled site visit
     visitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     remarks: String,
     photos: [String],
@@ -32,8 +32,12 @@ const farmhouseSchema = new mongoose.Schema(
     amenities: [String], // e.g. pool, kids-area, indoor-games, bbq, parking
     houseRules: [String],
     pricing: { type: pricingSchema, required: true },
+    // Booking and cancellation policy (Vintage Vista defaults):
+    // 30% advance. Cancel more than 72 hours before the booking date and 30% of the advance is
+    // refunded. Cancel within 72 hours and nothing is refunded.
     advancePercent: { type: Number, default: 30, min: 0, max: 100 },
-    freeCancelHours: { type: Number, default: 72 },
+    cancelWindowHours: { type: Number, default: 72, min: 0 },
+    earlyCancelRefundPercent: { type: Number, default: 30, min: 0, max: 100 },
     photos: [String], // Cloudinary URLs
     // Listing lifecycle: nothing is public until an admin approves after a site visit.
     status: {
@@ -41,7 +45,16 @@ const farmhouseSchema = new mongoose.Schema(
       enum: ['pending', 'approved', 'rejected', 'suspended'],
       default: 'pending',
     },
-    verification: verificationSchema,
+    verification: { type: verificationSchema, default: () => ({}) },
+    // Full history of admin actions, so the panel can see who verified what and when.
+    history: [
+      {
+        action: String, // submitted, visit-scheduled, approved, rejected, suspended, reinstated, edited
+        by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        remarks: String,
+        at: { type: Date, default: Date.now },
+      },
+    ],
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
   },

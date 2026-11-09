@@ -11,6 +11,7 @@ export default function Navbar() {
           Bookmyfarm<span className="text-gray-500">.pk</span>
         </Link>
         <div className="flex items-center gap-4 text-sm">
+          <Link to="/farmhouses" className="hover:text-brand-600">Farmhouses</Link>
           {user ? (
             <>
               <Link to={`/dashboard/${user.role}`} className="hover:text-brand-600">Dashboard</Link>

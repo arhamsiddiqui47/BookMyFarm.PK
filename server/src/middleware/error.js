@@ -8,7 +8,10 @@ function errorHandler(err, req, res, next) {
   if (err.code === 11000) {
     return res.status(409).json({ message: 'Already exists', fields: Object.keys(err.keyValue || {}) });
   }
-  if (err.name === 'ValidationError') {
+  if (err.name === 'MulterError') {
+    return res.status(400).json({ message: err.code === 'LIMIT_FILE_SIZE' ? 'Each photo must be under 5 MB' : err.message });
+  }
+  if (err.name === 'ValidationError' || err.name === 'CastError') {
     return res.status(400).json({ message: err.message });
   }
   const status = err.status || 500;
